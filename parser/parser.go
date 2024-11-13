@@ -77,6 +77,23 @@ func New(l *lexer.Lexer) *Parser {
 	return p
 }
 
+// Parser struct fns
+
+type (
+	prefixParseFn func() ast.Expression
+	infixParseFn  func(ast.Expression) ast.Expression
+)
+
+func (p *Parser) registerPrefix(tokenType token.TokenType, fn prefixParseFn) {
+	p.prefixParseFns[tokenType] = fn
+}
+
+func (p *Parser) registerInfix(tokenType token.TokenType, fn infixParseFn) {
+	p.infixParseFns[tokenType] = fn
+}
+
+// Prefix functions
+
 func (p *Parser) parseIdentifier() ast.Expression {
 	return &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
 }
@@ -110,21 +127,6 @@ func (p *Parser) parsePrefixExpression() ast.Expression {
 	p.nextToken()
 
 	expression.Right = p.parseExpression(PREFIX)
-	return expression
-}
-
-func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
-	defer untrace(trace("parseInfixExpression"))
-	expression := &ast.InfixExpression{
-		Token:    p.curToken,
-		Operator: p.curToken.Literal,
-		Left:     left,
-	}
-
-	precendence := p.curPrecedence()
-	p.nextToken()
-	expression.Right = p.parseExpression(precendence)
-
 	return expression
 }
 
@@ -192,6 +194,35 @@ func (p *Parser) parseFunctionLiteral() ast.Expression {
 	return lit
 }
 
+// --------------------------------------------------------------------------------
+
+// Infix Expressions
+
+func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
+	defer untrace(trace("parseInfixExpression"))
+	expression := &ast.InfixExpression{
+		Token:    p.curToken,
+		Operator: p.curToken.Literal,
+		Left:     left,
+	}
+
+	precendence := p.curPrecedence()
+	p.nextToken()
+	expression.Right = p.parseExpression(precendence)
+
+	return expression
+}
+
+func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
+	exp := &ast.CallExpression{Token: p.curToken, Function: function}
+	exp.Arguments = p.parseCallArguments()
+	return exp
+}
+
+// --------------------------------------------------------------------------------
+
+// Random Parsing functions
+
 func (p *Parser) parseFunctionParameters() []*ast.Identifier {
 	identifiers := []*ast.Identifier{}
 
@@ -216,12 +247,6 @@ func (p *Parser) parseFunctionParameters() []*ast.Identifier {
 		return nil
 	}
 	return identifiers
-}
-
-func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
-	exp := &ast.CallExpression{Token: p.curToken, Function: function}
-	exp.Arguments = p.parseCallArguments()
-	return exp
 }
 
 func (p *Parser) parseCallArguments() []ast.Expression {
@@ -249,39 +274,9 @@ func (p *Parser) parseCallArguments() []ast.Expression {
 	return args
 }
 
-func (p *Parser) peekPrecedence() int {
-	if p, ok := precendences[p.peekToken.Type]; ok {
-		return p
-	}
-	return LOWEST
-}
+// ------------------------------------------------------------------------------------
 
-func (p *Parser) curPrecedence() int {
-	if p, ok := precendences[p.curToken.Type]; ok {
-		return p
-	}
-	return LOWEST
-}
-
-func (p *Parser) noPrefixParseFnError(t token.TokenType) {
-	msg := fmt.Sprintf("no prefix parse function for %s found", t)
-	p.errors = append(p.errors, msg)
-}
-
-func (p *Parser) Errors() []string {
-	return p.errors
-}
-
-func (p *Parser) peekError(t token.TokenType) {
-	msg := fmt.Sprintf("expected next token to be %s, got %s instead",
-		t, p.peekToken.Type)
-	p.errors = append(p.errors, msg)
-}
-
-func (p *Parser) nextToken() {
-	p.curToken = p.peekToken
-	p.peekToken = p.l.NextToken()
-}
+// Parse programs/statements
 
 func (p *Parser) ParseProgram() *ast.Program {
 	program := &ast.Program{}
@@ -398,6 +393,42 @@ func (p *Parser) parseExpression(precedence int) ast.Expression {
 	return leftExp
 }
 
+func (p *Parser) peekPrecedence() int {
+	if p, ok := precendences[p.peekToken.Type]; ok {
+		return p
+	}
+	return LOWEST
+}
+
+func (p *Parser) curPrecedence() int {
+	if p, ok := precendences[p.curToken.Type]; ok {
+		return p
+	}
+	return LOWEST
+}
+
+// Helper functions
+
+func (p *Parser) noPrefixParseFnError(t token.TokenType) {
+	msg := fmt.Sprintf("no prefix parse function for %s found", t)
+	p.errors = append(p.errors, msg)
+}
+
+func (p *Parser) Errors() []string {
+	return p.errors
+}
+
+func (p *Parser) peekError(t token.TokenType) {
+	msg := fmt.Sprintf("expected next token to be %s, got %s instead",
+		t, p.peekToken.Type)
+	p.errors = append(p.errors, msg)
+}
+
+func (p *Parser) nextToken() {
+	p.curToken = p.peekToken
+	p.peekToken = p.l.NextToken()
+}
+
 func (p *Parser) curTokenIs(t token.TokenType) bool {
 	return p.curToken.Type == t
 }
@@ -417,17 +448,4 @@ func (p *Parser) expectPeek(t token.TokenType) bool {
 		p.peekError(t)
 		return false
 	}
-}
-
-type (
-	prefixParseFn func() ast.Expression
-	infixParseFn  func(ast.Expression) ast.Expression
-)
-
-func (p *Parser) registerPrefix(tokenType token.TokenType, fn prefixParseFn) {
-	p.prefixParseFns[tokenType] = fn
-}
-
-func (p *Parser) registerInfix(tokenType token.TokenType, fn infixParseFn) {
-	p.infixParseFns[tokenType] = fn
 }
