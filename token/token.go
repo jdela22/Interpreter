@@ -56,4 +56,5 @@ const (
 	RETURN   = "RETURN"
 	EQ       = "=="
 	NOT_EQ   = "!="
+	STRING   = "STRING"
 )
