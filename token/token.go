@@ -59,4 +59,5 @@ const (
 	STRING   = "STRING"
 	LBRACKET = "["
 	RBRACKET = "]"
+	COLON    = ":"
 )
