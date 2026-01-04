@@ -76,13 +76,12 @@ func checkParserErrors(t *testing.T, p *Parser) {
 }
 
 func TestReturnStatements(t *testing.T) {
-	fmt.Print("start of return test")
 	tests := []struct {
 		input         string
 		expectedValue interface{}
 	}{
-		{"return 5 + 10", 15},
-		{"return y", "y"},
+		{"return 15;", 15},
+		{"return y;", "y"},
 	}
 	// input := `return 5;
 	// 	return 10;
@@ -108,6 +107,11 @@ func TestReturnStatements(t *testing.T) {
 		}
 		if returnStmt.TokenLiteral() != "return" {
 			t.Errorf("returnStmt.TokenLiteral not 'return', got %q", returnStmt.TokenLiteral())
+		}
+
+		val := returnStmt.ReturnValue
+		if !testLiteralExpression(t, val, tt.expectedValue) {
+			return
 		}
 	}
 }
@@ -261,7 +265,7 @@ func testIdentifier(t *testing.T, exp ast.Expression, value string) bool {
 	}
 
 	if ident.TokenLiteral() != value {
-		t.Errorf("ident.TokenLiteral not %s. got=%s'", value, ident.TokenLiteral())
+		t.Errorf("ident.TokenLiteral not %s. got=%s", value, ident.TokenLiteral())
 		return false
 	}
 	return true
@@ -510,9 +514,9 @@ func TestIfElseExpression(t *testing.T) {
 		return
 	}
 
-	if len(exp.Consequence.Statements) != 1 {
-		t.Errorf("consequence is not 1 statements. got=%d\n",
-			len(exp.Consequence.Statements))
+	if len(exp.Alternative.Statements) != 1 {
+		t.Errorf("alternative is not 1 statements. got=%d\n",
+			len(exp.Alternative.Statements))
 	}
 	alternative, ok := exp.Alternative.Statements[0].(*ast.ExpressionStatement)
 	if !ok {
