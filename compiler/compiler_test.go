@@ -185,6 +185,96 @@ func TestStringExpressions(t *testing.T) {
 	runCompilerTests(t, tests)
 }
 
+func TestArrayLiterals(t *testing.T) {
+	tests := []compilerTestCase{{
+		input:             "[]",
+		expectedConstants: []interface{}{},
+		expectedInstructions: []code.Instructions{
+			code.Make(code.OpArray, 0),
+			code.Make(code.OpPop),
+		},
+	},
+		{
+			input:             "[1, 2, 3]",
+			expectedConstants: []interface{}{1, 2, 3},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpConstant, 1),
+				code.Make(code.OpConstant, 2),
+				code.Make(code.OpArray, 3),
+				code.Make(code.OpPop),
+			},
+		},
+	}
+
+	runCompilerTests(t, tests)
+}
+
+func TestHashLiterals(t *testing.T) {
+	tests := []compilerTestCase{{
+		input:             "{}",
+		expectedConstants: []interface{}{},
+		expectedInstructions: []code.Instructions{
+			code.Make(code.OpHash, 0),
+			code.Make(code.OpPop),
+		},
+	},
+		{
+			input:             "{1: 2, 3: 4, 5: 6}",
+			expectedConstants: []interface{}{1, 2, 3, 4, 5, 6},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpConstant, 1),
+				code.Make(code.OpConstant, 2),
+				code.Make(code.OpConstant, 3),
+				code.Make(code.OpConstant, 4),
+				code.Make(code.OpConstant, 5),
+				code.Make(code.OpHash, 6),
+				code.Make(code.OpPop),
+			},
+		},
+	}
+	runCompilerTests(t, tests)
+}
+
+func TestIndexExpressions(t *testing.T) {
+	tests := []compilerTestCase{{
+		input:             "[1,2,3][1+1]",
+		expectedConstants: []interface{}{1, 2, 3, 1, 1},
+		expectedInstructions: []code.Instructions{
+			code.Make(code.OpConstant, 0),
+			code.Make(code.OpConstant, 1),
+			code.Make(code.OpConstant, 2),
+			code.Make(code.OpArray, 3),
+			code.Make(code.OpConstant, 3),
+			code.Make(code.OpConstant, 4),
+			code.Make(code.OpAdd),
+			code.Make(code.OpIndex),
+			code.Make(code.OpPop),
+		},
+	},
+	}
+	runCompilerTests(t, tests)
+}
+
+func TestFunctions(t *testing.T) {
+	tests := []compilerTestCase{{
+		input: "fn() { return 5 + 10}",
+		expectedConstants: []interface{}{5, 10, []code.Instructions{
+			code.Make(code.OpConstant, 0),
+			code.Make(code.OpConstant, 1),
+			code.Make(code.OpAdd),
+			code.Make(code.OpReturnValue),
+		}},
+		expectedInstructions: []code.Instructions{
+			code.Make(code.OpConstant, 2),
+			code.Make(code.OpPop),
+		},
+	},
+	}
+	runCompilerTests(t, tests)
+}
+
 func runCompilerTests(t *testing.T, tests []compilerTestCase) {
 	t.Helper()
 
@@ -256,6 +346,16 @@ func testConstants(t *testing.T, expected []interface{}, actual []object.Object)
 			err := testStringObject(constant, actual[i])
 			if err != nil {
 				return fmt.Errorf("constant %d - testStringObject failed: %s", i, err)
+			}
+		case []code.Instructions:
+			fn, ok := actual[i].(*object.CompiledFunction)
+			if !ok {
+				return fmt.Errorf("not a function")
+			}
+
+			err := testInstructions(constant, fn.Instructions)
+			if err != nil {
+				return fmt.Errorf("constant testInstructions failed")
 			}
 		}
 	}
