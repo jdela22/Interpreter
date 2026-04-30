@@ -51,7 +51,14 @@ func TestBooleanExpressions(t *testing.T) {
 
 		{input: "1 == 2", expectedConstants: []interface{}{1, 2}, expectedInstructions: []code.Instructions{code.Make(code.OpConstant, 0), code.Make(code.OpConstant, 1), code.Make(code.OpEqual), code.Make(code.OpPop)}},
 		{
-			input: "1 != 2", expectedConstants: []interface{}{1, 2}, expectedInstructions: []code.Instructions{code.Make(code.OpConstant, 0), code.Make(code.OpConstant, 1), code.Make(code.OpNotEqual), code.Make(code.OpPop)},
+			input:             "1 != 2",
+			expectedConstants: []interface{}{1, 2},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpConstant, 1),
+				code.Make(code.OpNotEqual),
+				code.Make(code.OpPop),
+			},
 		},
 		{input: "true == false", expectedConstants: []interface{}{}, expectedInstructions: []code.Instructions{code.Make(code.OpTrue), code.Make(code.OpFalse), code.Make(code.OpEqual), code.Make(code.OpPop)}},
 		{input: "true != false", expectedConstants: []interface{}{}, expectedInstructions: []code.Instructions{code.Make(code.OpTrue), code.Make(code.OpFalse), code.Make(code.OpNotEqual), code.Make(code.OpPop)}},
@@ -258,19 +265,88 @@ func TestIndexExpressions(t *testing.T) {
 }
 
 func TestFunctions(t *testing.T) {
-	tests := []compilerTestCase{{
-		input: "fn() { return 5 + 10}",
-		expectedConstants: []interface{}{5, 10, []code.Instructions{
-			code.Make(code.OpConstant, 0),
-			code.Make(code.OpConstant, 1),
-			code.Make(code.OpAdd),
-			code.Make(code.OpReturnValue),
-		}},
-		expectedInstructions: []code.Instructions{
-			code.Make(code.OpConstant, 2),
-			code.Make(code.OpPop),
+	tests := []compilerTestCase{
+		{
+			input: "fn() { return 5 + 10}",
+			expectedConstants: []interface{}{5, 10, []code.Instructions{
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpConstant, 1),
+				code.Make(code.OpAdd),
+				code.Make(code.OpReturnValue),
+			}},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 2),
+				code.Make(code.OpPop),
+			},
 		},
-	},
+		{
+			input: "fn() { 5 + 10 }",
+			expectedConstants: []interface{}{5, 10, []code.Instructions{
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpConstant, 1),
+				code.Make(code.OpAdd),
+				code.Make(code.OpReturnValue),
+			}},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 2),
+				code.Make(code.OpPop),
+			},
+		},
+		{
+			input: "fn() { 1; 2 }",
+			expectedConstants: []interface{}{1, 2, []code.Instructions{
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpPop),
+				code.Make(code.OpConstant, 1),
+				code.Make(code.OpReturnValue),
+			}},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 2),
+				code.Make(code.OpPop),
+			},
+		},
+		{
+			input: "fn() {  }",
+			expectedConstants: []interface{}{[]code.Instructions{
+				code.Make(code.OpReturn),
+			}},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpPop),
+			},
+		},
+	}
+	runCompilerTests(t, tests)
+}
+
+func TestFunctionCalls(t *testing.T) {
+	tests := []compilerTestCase{
+		{
+			input: "fn() { 24 }();",
+			expectedConstants: []interface{}{24, []code.Instructions{
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpReturnValue),
+			}},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 1),
+				code.Make(code.OpCall),
+				code.Make(code.OpPop),
+			},
+		},
+		{
+			input: "let noArg = fn() { 24 }; noArg();",
+			expectedConstants: []interface{}{24, []code.Instructions{
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpReturnValue),
+			}},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 1),
+				code.Make(code.OpSetGlobal, 0),
+				code.Make(code.OpGetGlobal, 0),
+				code.Make(code.OpCall),
+				code.Make(code.OpPop),
+			},
+		},
 	}
 	runCompilerTests(t, tests)
 }
